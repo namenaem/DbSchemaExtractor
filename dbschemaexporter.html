@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal SQL Schema Cleaner</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 700px;
+            padding: 40px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        p.desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+        }
+
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .drop-zone:hover {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .drop-zone input { display: none; }
+        
+        .icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+        }
+
+        .drop-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .file-info {
+            display: none;
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .db-type {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--primary);
+            display: none;
+        }
+
+        .actions {
+            margin-top: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover { 
+            background-color: var(--primary-hover); 
+            transform: translateY(-1px);
+        }
+        
+        .btn-primary:disabled { 
+            background-color: #475569; 
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+        
+        .btn-secondary:hover { 
+            background-color: rgba(255, 255, 255, 0.05); 
+        }
+
+        .stats {
+            margin-top: 16px;
+            padding: 12px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--success);
+            display: none;
+        }
+
+        footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .format-hint {
+            margin-top: 16px;
+            font-size: 12px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Universal SQL Schema Extractor</h1>
+        <p class="desc">Extract clean schema from MySQL, PostgreSQL, SQLite, SQL Server dumps. Removes all data, keeps structure.</p>
+
+        <div id="dropZone" class="drop-zone">
+            <input type="file" id="fileInput" accept=".sql,.dump">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <div class="drop-text">Drop your SQL dump file here</div>
+        </div>
+
+        <div id="fileInfo" class="file-info" style="display: none;">
+            <span id="fileName">dump.sql</span>
+            <span id="fileSize" style="color: var(--text-muted)">0 KB</span>
+        </div>
+
+        <div id="dbType" class="db-type"></div>
+
+        <div class="actions">
+            <button id="processBtn" class="btn-primary" disabled>Extract Schema</button>
+            <button id="copyBtn" class="btn-secondary" style="display: none;">Copy to Clipboard</button>
+        </div>
+
+        <div id="stats" class="stats"></div>
+
+        <div class="format-hint">
+            Supports: MySQL, MariaDB, PostgreSQL, SQLite, SQL Server
+        </div>
+    </div>
+
+    <footer>
+        100% client-side processing. Your data never leaves your browser.
+    </footer>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileNameDisplay = document.getElementById('fileName');
+        const fileSizeDisplay = document.getElementById('fileSize');
+        const processBtn = document.getElementById('processBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const dbTypeDisplay = document.getElementById('dbType');
+        const statsDisplay = document.getElementById('stats');
+
+        let selectedFile = null;
+        let cleanedOutput = "";
+
+        // --- UI Interactions ---
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFiles(e.target.files);
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--primary)';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--border)';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = 'var(--border)';
+            if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            const file = files[0];
+            if (!file) return;
+
+            selectedFile = file;
+            fileNameDisplay.textContent = file.name;
+            fileSizeDisplay.textContent = formatFileSize(file.size);
+            
+            fileInfo.style.display = 'flex';
+            dbTypeDisplay.style.display = 'none';
+            statsDisplay.style.display = 'none';
+            copyBtn.style.display = 'none';
+            
+            processBtn.disabled = false;
+            processBtn.textContent = 'Extract Schema';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        // --- Smart DB Detection ---
+
+        function detectDatabaseType(content) {
+            const upper = content.toUpperCase();
+            
+            if (upper.includes('POSTGRESQL') || upper.includes('PG_DUMP') || upper.includes('SET SEARCH_PATH')) {
+                return 'PostgreSQL';
+            }
+            if (upper.includes('SQLITE') || upper.includes('BEGIN TRANSACTION') && !upper.includes('INNODB')) {
+                return 'SQLite';
+            }
+            if (upper.includes('MICROSOFT') || upper.includes('SQL SERVER') || upper.includes('GO\r\n') || upper.includes('N\'')) {
+                return 'SQL Server';
+            }
+            if (upper.includes('MYSQL') || upper.includes('MARIADB') || upper.includes('INNODB') || upper.includes('MYISAM')) {
+                return 'MySQL/MariaDB';
+            }
+            return 'Unknown (Generic SQL)';
+        }
+
+        // --- Processing Logic ---
+
+        processBtn.addEventListener('click', () => {
+            if (!selectedFile) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const dbType = detectDatabaseType(content);
+                
+                dbTypeDisplay.textContent = `Detected: ${dbType}`;
+                dbTypeDisplay.style.display = 'block';
+
+                let result;
+                let stats = { tables: 0, indexes: 0, constraints: 0, removed: 0 };
+
+                switch(dbType) {
+                    case 'PostgreSQL':
+                        result = cleanPostgreSQL(content, stats);
+                        break;
+                    case 'SQLite':
+                        result = cleanSQLite(content, stats);
+                        break;
+                    case 'SQL Server':
+                        result = cleanSQLServer(content, stats);
+                        break;
+                    case 'MySQL/MariaDB':
+                        result = cleanMySQL(content, stats);
+                        break;
+                    default:
+                        result = cleanGeneric(content, stats);
+                }
+
+                cleanedOutput = result;
+                
+                // Show stats
+                statsDisplay.innerHTML = `
+                    ✅ Tables: ${stats.tables} | 
+                    Indexes: ${stats.indexes} | 
+                    Constraints: ${stats.constraints} | 
+                    Data rows removed: ${stats.removed}
+                `;
+                statsDisplay.style.display = 'block';
+
+                // Trigger Download
+                const blob = new Blob([cleanedOutput], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = selectedFile.name.replace(/\.(sql|dump)$/i, '') + '_schema.sql';
+                link.click();
+                URL.revokeObjectURL(link.href);
+
+                // UI Updates
+                copyBtn.style.display = 'block';
+                processBtn.textContent = 'Done!';
+                setTimeout(() => { processBtn.textContent = 'Extract Schema'; }, 2000);
+            };
+            reader.readAsText(selectedFile);
+        });
+
+        // --- MySQL/MariaDB Cleaner ---
+
+        function cleanMySQL(content, stats) {
+            const lines = content.split(/\r?\n/);
+            const output = [];
+            let inDataTable = false;
+            let skipInsert = false;
+
+            output.push('-- Schema extracted by Universal SQL Cleaner');
+            output.push(`-- Original file: ${selectedFile.name}`);
+            output.push('-- Date: ' + new Date().toISOString().split('T')[0]);
+            output.push('');
+
+            for (let line of lines) {
+                const trimmed = line.trim();
+                const upper = trimmed.toUpperCase();
+
+                // Skip metadata comments
+                if (trimmed.startsWith('--') && (
+                    upper.includes('HOST:') ||
+                    upper.includes('SERVER VERSION') ||
+                    upper.includes('PHP VERSION') ||
+                    upper.includes('GENERATION TIME') ||
+                    upper.includes('DATABASE:') ||
+                    upper.includes('ДАМП ДАННЫХ') ||
+                    upper.includes('ВЫВОД ДАННЫХ') ||
+                    upper.includes('СТРУКТУРА ТАБЛИЦЫ')
+                )) {
+                    continue;
+                }
+
+                // Detect table structure start
+                if (upper.startsWith('CREATE TABLE')) {
+                    inDataTable = true;
+                    stats.tables++;
+                    output.push(line);
+                    continue;
+                }
+
+                // Skip INSERT statements
+                if (upper.startsWith('INSERT INTO') || upper.startsWith('REPLACE INTO')) {
+                    skipInsert = true;
+                    stats.removed++;
+                    continue;
+                }
+
+                // Handle multi-line INSERT values
+                if (skipInsert) {
+                    if (trimmed.endsWith(';') || trimmed.endsWith('),')) {
+                        skipInsert = false;
+                    }
+                    continue;
+                }
+
+                // Skip raw data tuples
+                if (inDataTable && trimmed.match(/^\(\d+,\s*['"]/)) {
+                    stats.removed++;
+                    continue;
+                }
+
+                // Count indexes and constraints
+                if (upper.includes('KEY ') || upper.includes('INDEX ') || upper.includes('UNIQUE KEY')) {
+                    stats.indexes++;
+                }
+                if (upper.includes('CONSTRAINT') || upper.includes('FOREIGN KEY')) {
+                    stats.constraints++;
+                }
+
+                // Clean AUTO_INCREMENT
+                if (line.includes('AUTO_INCREMENT=')) {
+                    line = line.replace(/AUTO_INCREMENT=\d+\s*/gi, '');
+                }
+
+                output.push(line);
+                inDataTable = false;
+            }
+
+            return output.join('\n').replace(/\n{3,}/g, '\n\n');
+        }
+
+        // --- PostgreSQL Cleaner ---
+
+        function cleanPostgreSQL(content, stats) {
+            const lines = content.split(/\r?\n/);
+            const output = [];
+            let inCopyBlock = false;
+
+            output.push('-- Schema extracted by Universal SQL Cleaner');
+            output.push(`-- Original file: ${selectedFile.name}`);
+            output.push('-- Date: ' + new Date().toISOString().split('T')[0]);
+            output.push('');
+
+            for (let line of lines) {
+                const trimmed = line.trim();
+                const upper = trimmed.toUpperCase();
+
+                // Skip pg_dump headers
+                if (trimmed.startsWith('--') && (
+                    upper.includes('POSTGRESQL DATABASE DUMP') ||
+                    upper.includes('STARTED ON') ||
+                    upper.includes('DUMPED FROM') ||
+                    upper.includes('DATABASE:')
+                )) {
+                    continue;
+                }
+
+                // Skip SET statements (session settings)
+                if (upper.startsWith('SET ') || upper.startsWith('SELECT PG_CATALOG.SET_CONFIG')) {
+                    continue;
+                }
+
+                // Skip COPY blocks (data)
+                if (upper.startsWith('COPY ')) {
+                    inCopyBlock = true;
+                    stats.removed++;
+                    continue;
+                }
+
+                if (inCopyBlock) {
+                    if (trimmed === '\\.' || trimmed.endsWith('\\.')) {
+                        inCopyBlock = false;
+                    }
+                    continue;
+                }
+
+                // Skip INSERT statements
+                if (upper.startsWith('INSERT INTO')) {
+                    stats.removed++;
+                    continue;
+                }
+
+                // Count structures
+                if (upper.startsWith('CREATE TABLE')) stats.tables++;
+                if (upper.startsWith('CREATE INDEX') || upper.includes('USING BTREE')) stats.indexes++;
+                if (upper.includes('CONSTRAINT') || upper.includes('REFERENCES')) stats.constraints++;
+
+                // Remove sequence resets
+                if (upper.startsWith('SELECT SETVAL')) continue;
+                if (upper.startsWith('ALTER SEQUENCE')) continue;
+
+                output.push(line);
+            }
+
+            return output.join('\n').replace(/\n{3,}/g, '\n\n');
+        }
+
+        // --- SQLite Cleaner ---
+
+        function cleanSQLite(content, stats) {
+            const lines = content.split(/\r?\n/);
+            const output = [];
+
+            output.push('-- Schema extracted by Universal SQL Cleaner');
+            output.push(`-- Original file: ${selectedFile.name}`);
+            output.push('-- Date: ' + new Date().toISOString().split('T')[0]);
+            output.push('');
+
+            for (let line of lines) {
+                const trimmed = line.trim();
+                const upper = trimmed.toUpperCase();
+
+                // Skip transaction wrappers
+                if (upper === 'BEGIN TRANSACTION;' || upper === 'COMMIT;') continue;
+
+                // Skip PRAGMA statements
+                if (upper.startsWith('PRAGMA ')) continue;
+
+                // Keep CREATE TABLE, INDEX, VIEW
+                if (upper.startsWith('CREATE TABLE') || 
+                    upper.startsWith('CREATE INDEX') || 
+                    upper.startsWith('CREATE UNIQUE INDEX') ||
+                    upper.startsWith('CREATE VIEW')) {
+                    
+                    if (upper.startsWith('CREATE TABLE')) stats.tables++;
+                    if (upper.includes('INDEX')) stats.indexes++;
+                    
+                    output.push(line);
+                    continue;
+                }
+
+                // Skip INSERT statements
+                if (upper.startsWith('INSERT INTO')) {
+                    stats.removed++;
+                    continue;
+                }
+
+                // Skip ANALYZE tables
+                if (upper.startsWith('ANALYZE ')) continue;
+            }
+
+            return output.join('\n').replace(/\n{3,}/g, '\n\n');
+        }
+
+        // --- SQL Server Cleaner ---
+
+        function cleanSQLServer(content, stats) {
+            const lines = content.split(/\r?\n/);
+            const output = [];
+            let inInsertBlock = false;
+
+            output.push('-- Schema extracted by Universal SQL Cleaner');
+            output.push(`-- Original file: ${selectedFile.name}`);
+            output.push('-- Date: ' + new Date().toISOString().split('T')[0]);
+            output.push('');
+
+            for (let line of lines) {
+                const trimmed = line.trim();
+                const upper = trimmed.toUpperCase();
+
+                // Skip SSMS headers
+                if (trimmed.startsWith('/') && upper.includes('SCRIPT DATE')) continue;
+                if (trimmed.startsWith('USE ')) continue;
+                if (upper.startsWith('GO') && trimmed === 'GO') continue;
+
+                // Skip INSERT blocks
+                if (upper.startsWith('INSERT INTO')) {
+                    inInsertBlock = true;
+                    stats.removed++;
+                    continue;
+                }
+
+                if (inInsertBlock) {
+                    if (trimmed.endsWith(')') || trimmed === 'GO') {
+                        inInsertBlock = false;
+                    }
+                    continue;
+                }
+
+                // Skip EXEC sp_addextendedproperty (metadata)
+                if (upper.startsWith('EXEC SYS.SP_ADDEXTENDEDPROPERTY')) continue;
+
+                // Count structures
+                if (upper.startsWith('CREATE TABLE')) stats.tables++;
+                if (upper.startsWith('CREATE INDEX') || upper.startsWith('CREATE UNIQUE INDEX')) stats.indexes++;
+                if (upper.includes('CONSTRAINT') || upper.includes('FOREIGN KEY')) stats.constraints++;
+
+                // Keep CREATE statements
+                if (upper.startsWith('CREATE ') || upper.startsWith('ALTER TABLE') || upper.startsWith('ADD CONSTRAINT')) {
+                    output.push(line);
+                }
+            }
+
+            return output.join('\n').replace(/\n{3,}/g, '\n\n');
+        }
+
+        // --- Generic Fallback Cleaner ---
+
+        function cleanGeneric(content, stats) {
+            const lines = content.split(/\r?\n/);
+            const output = [];
+
+            output.push('-- Schema extracted by Universal SQL Cleaner');
+            output.push(`-- Original file: ${selectedFile.name}`);
+            output.push('-- Date: ' + new Date().toISOString().split('T')[0]);
+            output.push('');
+
+            for (let line of lines) {
+                const trimmed = line.trim();
+                const upper = trimmed.toUpperCase();
+
+                // Skip common metadata
+                if (trimmed.startsWith('--') || trimmed.startsWith('#')) {
+                    if (!upper.includes('TABLE STRUCTURE') && !upper.includes('CREATE')) {
+                        continue;
+                    }
+                }
+
+                // Skip INSERT/UPDATE/DELETE
+                if (upper.startsWith('INSERT ') || upper.startsWith('UPDATE ') || upper.startsWith('DELETE ')) {
+                    stats.removed++;
+                    continue;
+                }
+
+                // Keep CREATE statements
+                if (upper.startsWith('CREATE ')) {
+                    if (upper.includes('TABLE')) stats.tables++;
+                    if (upper.includes('INDEX')) stats.indexes++;
+                    output.push(line);
+                    continue;
+                }
+
+                // Keep ALTER statements
+                if (upper.startsWith('ALTER ')) {
+                    if (upper.includes('CONSTRAINT') || upper.includes('ADD ')) {
+                        stats.constraints++;
+                        output.push(line);
+                    }
+                    continue;
+                }
+            }
+
+            return output.join('\n').replace(/\n{3,}/g, '\n\n');
+        }
+
+        // --- Copy Button ---
+
+        copyBtn.addEventListener('click', () => {
+            if (!cleanedOutput) return;
+            navigator.clipboard.writeText(cleanedOutput);
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = '✓ Copied!';
+            setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+        });
+    </script>
+</body>
+</html>
